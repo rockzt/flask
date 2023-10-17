@@ -3,7 +3,6 @@ from dogtor.db import db
 from sqlalchemy.orm import mapped_column
 # Importing datatypes for creating Model
 from sqlalchemy import Integer, String, DateTime, ForeignKey
-from enum import Enum
 import datetime
 
 
@@ -13,8 +12,10 @@ import datetime
 class User(db.Model):
     """User Object"""
     id = mapped_column(Integer, primary_key=True)
-    username = mapped_column(String(255), unique=True, nullable=False)
+    first_name = mapped_column(String(255), nullable=False)
+    last_name = mapped_column(String(255), nullable=True)
     email = mapped_column(String(100), unique=True)
+    password = mapped_column(String(100), nullable=False)
 
 
 
@@ -27,13 +28,13 @@ class Owner(db.Model):
     mobile = mapped_column(String(length=15))
     email = mapped_column(String(), unique=True)
     # Foreign Key to connect with Specie Model  'modelname_id' ,  column that is related to the main Model
-    pets = db.relationship("Pet", backref="owner")
+    pets = db.relationship("Pet", back_populates="owner")
 
 
 class Specie(db.Model):
     id = mapped_column(Integer, primary_key=True)
-    name = mapped_column(String(255))
-    pet = db.relationship("Pet", backref="specie")
+    name = mapped_column(String(25))
+    pets = db.relationship("Pet", back_populates="species")
 
 
 class Pet(db.Model):
@@ -44,20 +45,35 @@ class Pet(db.Model):
     age = mapped_column(Integer)
     specie_id = mapped_column(Integer, ForeignKey("specie.id"))
     record_id = mapped_column(Integer, ForeignKey("record.id"))
+    species = db.relationship("Specie", back_populates="pets")
+    owner = db.relationship("Owner", back_populates="pets")
+    records = db.relationship("Record", back_populates="pet")
+
+record_category_m2m = db.Table(
+    "record_category",
+    db.Column("record_id", Integer, db.ForeignKey("record.id")),
+    db.Column("category_id", Integer, db.ForeignKey("category.id")),
+)
 
 
 
-class Category(Enum):
-    OTHER = 0
-    BLOOD_PRESSURE = 1
-    BLOOD_SUGAR = 2
-    BLOOD_GLUCOSE = 3
-    BLOOD_OXYGEN = 4
-    VACCINATION = 5
 class Record(db.Model):
+
     id = mapped_column(Integer, primary_key=True)
-    category = mapped_column(db.Enum(Category))
     procedure = mapped_column(String(255))
     date = mapped_column(DateTime)
-    pet = db.relationship("Pet", backref="records")
+    pet = db.relationship("Pet", back_populates="records")
     created_at = mapped_column(DateTime, default=db.func.datetime)
+    categories = db.relationship(
+        "Category", secondary=record_category_m2m, back_populates="records"
+    )
+
+
+
+class Category(db.Model):
+    """Record category object"""
+    id = db.Column(Integer, primary_key=True)
+    name = db.Column(String(length=20))
+    records = db.relationship(
+        "Record", secondary=record_category_m2m, back_populates="categories"
+    )
